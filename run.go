@@ -13,10 +13,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
-const playwrightCliVersion = "1.16.0-next-1634703014000"
+const playwrightCliVersion = "1.20.0-beta-1647057403000"
 
 type PlaywrightDriver struct {
 	DriverDirectory, DriverBinaryLocation, Version string
@@ -85,11 +84,15 @@ func (d *PlaywrightDriver) install() error {
 	if d.options.SkipInstallBrowsers {
 		return nil
 	}
-	log.Println("Downloading browsers...")
+	if d.options.Verbose {
+		log.Println("Downloading browsers...")
+	}
 	if err := d.installBrowsers(d.DriverBinaryLocation); err != nil {
 		return fmt.Errorf("could not install browsers: %w", err)
 	}
-	log.Println("Downloaded browsers successfully")
+	if d.options.Verbose {
+		log.Println("Downloaded browsers successfully")
+	}
 	return nil
 }
 func (d *PlaywrightDriver) DownloadDriver() error {
@@ -217,6 +220,7 @@ type RunOptions struct {
 	DriverDirectory     string
 	SkipInstallBrowsers bool
 	Browsers            []string
+	Verbose             bool
 }
 
 // Install does download the driver and the browsers. If not called manually
@@ -239,9 +243,6 @@ func Run(options ...*RunOptions) (*Playwright, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not get driver instance: %w", err)
 	}
-	if err := driver.install(); err != nil {
-		return nil, fmt.Errorf("could not install driver: %w", err)
-	}
 	connection, err := driver.run()
 	if err != nil {
 		return nil, err
@@ -254,7 +255,9 @@ func transformRunOptions(options []*RunOptions) *RunOptions {
 	if len(options) == 1 {
 		return options[0]
 	}
-	return &RunOptions{}
+	return &RunOptions{
+		Verbose: true,
+	}
 }
 
 func getDriverName() string {
@@ -279,11 +282,7 @@ func (d *PlaywrightDriver) getDriverURL() string {
 	case "linux":
 		platform = "linux"
 	}
-	optionalSubDirectory := ""
-	if strings.Contains(d.Version, "next") {
-		optionalSubDirectory = "/next"
-	}
-	return fmt.Sprintf("https://playwright.azureedge.net/builds/driver%s/playwright-%s-%s.zip", optionalSubDirectory, d.Version, platform)
+	return fmt.Sprintf("https://playwright.azureedge.net/builds/driver/next/playwright-%s-%s.zip", d.Version, platform)
 }
 
 func makeFileExecutable(path string) error {
